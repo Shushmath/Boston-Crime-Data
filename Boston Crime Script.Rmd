@@ -1,0 +1,151 @@
+---
+team: 'Team13'
+output: html_notebook
+---
+```{r}
+#The highest number of crimes were recorded in 2017 and the data's of '16 & '19 were ignored due to incomplete data
+number <- crime %>%
+  group_by(year) %>%
+  summarise(No_of_crimes = n())
+number <- number[c(2016,2017,2018), ]
+number <- crime %>%
+  group_by(year) %>%
+  summarise(No_of_crimes = n())
+ggplot(number, aes(x = year, y = No_of_crimes, fill = year )) +
+  geom_col() +
+  ggtitle("Total number of crimes in the respective year") +
+  theme(legend.position="none")
+```
+
+```{r}
+## Motor vehicle record the highest number of crimes so, maybe due to reckless driving or the amount of motorvehicles is a lot more higher these days and chances of getting into accidents is much more
+Offense_Code1$year <- as.factor(Offense_Code1$year)
+ggplot(Offense_Code1, aes(x = offense_code_group, y = No_of_crimes, fill = year )) +
+  geom_col(position="dodge") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = .5)) +
+  ggtitle("Total number of top 15 individual crimes")
+
+
+```
+
+```{r}
+## August records the highest amount and there is huge drop from oct to nov, that is when the climate changes and that might be because of people don't prefer to step out of the house in cold conditions
+Month$year <- as.factor(Month$year)
+Month$month <- as.factor(Month$month)
+ggplot(Month, aes(x = month, y = No_of_crimes, fill = year, group = year)) +
+  geom_line(size = 1, aes(linetype = year, color = year)) + geom_point() +
+  expand_limits(x=c(0,12)) +
+  ggtitle("Number of crimes recorded over the years")
+
+
+
+```
+
+
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+#Mapping values 
+crime$origdistrictname <- plyr::mapvalues(crime$district, 
+                                         from=c('','A1','A15','A7','B2','B3','C6','C11','D4','D14','E5','E13','E18'),
+                                         to=c('unknown','DT & Charleston','DT & Charleston','East Boston','Roxbury','Mattapan','South Boston','Dorchester','South End','Brighton','West Roxbury','Jamaica Plain','Hyde Park'))
+
+#Summarising data
+district <- crime %>%
+  group_by(origdistrictname) %>%
+  summarise(No_of_crimes=n())
+
+#Bar plot
+ggplot(data = district) +
+  aes(x = reorder(origdistrictname,No_of_crimes), weight = No_of_crimes) + coord_flip()+
+  geom_bar(fill = "#0c4c8a") + labs(title = "District wise crime",y="No_of_crimes",x="District")+
+  theme_minimal()
+
+```
+
+```{r}
+#Data filtering
+crimeroxbury <- filter(crime,origdistrictname=='Roxbury' & offense_code_group %in% n)
+ucr_rox <- crimeroxbury %>%
+                  group_by(ucr_part) %>%
+                          summarise(No_of_crimes=n())
+#Bar plot
+bp<- ggplot(ucr_rox, aes(x="", y=No_of_crimes, fill=ucr_part))+
+geom_bar(width = 1, stat = "identity")
+#Pie chart
+pie <- bp + coord_polar("y",start = 0) + labs(title = "Types of crimes in Roxbury")
+pie
+
+#3d pie chart
+library(plotrix)
+pie3D(ucr_rox$No_of_crimes, labels = ucr_rox$ucr_part, main = "An exploded 3D pie chart", explode=0.1, radius=.9, labelcex = 1.2,  start=0.7)
+```
+```{r}
+#Filtering data
+crimeroxbury_ucr1 <- filter(crime,origdistrictname=='Roxbury' & ucr_part=="Part One")
+streetucr1 <- crimeroxbury_ucr1 %>%
+                        group_by(street) %>%
+                            summarise(No_of_crimes=n()) %>%
+                                  top_n(15)%>%
+                                    arrange(desc(No_of_crimes))
+streetucr1$street[which(streetucr1$street =='')]<- 'Unknown'
+#Plotting 
+ggplot(data = streetucr1) +
+  aes(x = reorder(street,No_of_crimes), weight = No_of_crimes) + coord_flip()+
+  geom_bar(fill = "#0c4c8a") + labs(title = "Roxbury Street wise part one crimes",y="No_of_crimes",x="Street")+
+  theme(axis.text.x = element_text(angle=90))
+
+```
+
+
+```{r}
+#Mapping data
+crime$Season <- plyr::mapvalues(crime$month, 
+                                         from=c(3,4,5,6,7,8,9,10,11,12,1,2),
+                                         to=c('Spring','Spring','Spring','Summer','Summer','Summer'
+                                              ,'Fall','Fall','Fall','Winter','Winter','Winter'))
+crime$Part_of_day <- crime$hour
+crime$Part_of_day <- ifelse(crime$hour %in% c(6,7,8,9,10,11),'Morning',crime$Part_of_day)
+crime$Part_of_day <- ifelse(crime$hour %in% c(12,13,14,15,16,17),'Afternoon',crime$Part_of_day)
+crime$Part_of_day <- ifelse(crime$hour %in% c(18,19,20,21,22,23),'Evening',crime$Part_of_day)
+crime$Part_of_day <- ifelse(crime$hour %in% c(0,1,2,3,4,5),'Mid-Night',crime$Part_of_day)
+season <- crime %>%
+              group_by(day_of_week,Part_of_day)%>%
+                  summarise(No_of_crimes=n())
+
+#Plotting data
+ggplot(data = season) +
+  aes(y = day_of_week, x = Part_of_day, fill = No_of_crimes) +
+  geom_tile() +
+  scale_fill_distiller(palette = "RdYlGn") +
+  theme_minimal()
+
+```
+
+```{r}
+#Crimes in a season by day
+season_day <- crime %>%
+                group_by(Season,day_of_week) %>%
+                  summarise(No_of_crimes=n())
+ggplot(data = season_day) +
+  aes(x = Season, y = day_of_week, fill = No_of_crimes) +
+  geom_tile() +
+  scale_fill_distiller(palette = "Spectral") +
+  theme_minimal()
+```
+```{r}
+#Crimes in a season by time
+seasontime <- crime %>%
+                group_by(Season,Part_of_day) %>%
+                      summarise(crime=n())
+ggplot(data = seasontime) +
+  aes(y = Season, x = Part_of_day, fill = crime) +
+  geom_tile() +
+  scale_fill_distiller(palette = "Spectral") +
+  theme_minimal()
+```
+
